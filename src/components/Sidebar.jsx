@@ -1,21 +1,16 @@
 /**
- * Sidebar.jsx - Barra de navegacion lateral persistente
- * Muestra los modulos del sistema con el item activo resaltado
- * Maneja el logout mediante el contexto de autenticacion
- *
- * Props:
- * - activeModule: string - modulo actualmente activo
+ * Sidebar — ink column navigation with serif wordmark.
  */
 
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import Icon from './Icon.jsx'
 
-// Definicion de los items del menu de navegacion
 const NAV_ITEMS = [
-  { path: '/dashboard', icon: '📊', label: 'Dashboard' },
-  { path: '/facturas',  icon: '📄', label: 'Facturacion' },
-  { path: '/clientes',  icon: '👥', label: 'Clientes' },
-  { path: '/inventario',icon: '📦', label: 'Inventario' },
+  { path: '/dashboard',  icon: 'dashboard', label: 'Resumen',      num: 'I'   },
+  { path: '/facturas',   icon: 'document',  label: 'Facturación',  num: 'II'  },
+  { path: '/clientes',   icon: 'users',     label: 'Clientes',     num: 'III' },
+  { path: '/inventario', icon: 'package',   label: 'Inventario',   num: 'IV'  },
 ]
 
 function Sidebar() {
@@ -23,46 +18,64 @@ function Sidebar() {
   const location = useLocation()
   const { logout, user } = useAuth()
 
-  // Cerrar sesion y redirigir al login
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
+  const initials = user?.nombre
+    ? user.nombre.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'US'
+
   return (
     <aside className="sidebar">
-      {/* Marca del sistema */}
       <div className="sidebar__brand">
-        <div className="sidebar__icon">🧾</div>
-        <span className="sidebar__name">Invoixio</span>
+        <div className="sidebar__brand-row">
+          <span className="sidebar__mark">Invo<em>i</em>xio</span>
+        </div>
+        <span className="sidebar__meta">Est. MMXXVI · Bogotá</span>
       </div>
 
-      {/* Navegacion principal */}
-      <nav className="sidebar__nav" aria-label="Menu principal">
-        <span className="nav-label">Principal</span>
+      <nav className="sidebar__nav" aria-label="Menú principal">
+        <span className="nav-label">Módulos</span>
 
-        {NAV_ITEMS.map(item => (
-          <button
-            key={item.path}
-            className={`nav-item ${location.pathname === item.path ? 'nav-item--active' : ''}`}
-            onClick={() => navigate(item.path)}
-            aria-current={location.pathname === item.path ? 'page' : undefined}
-          >
-            <span aria-hidden="true">{item.icon}</span>
-            {item.label}
-          </button>
-        ))}
+        {NAV_ITEMS.map(item => {
+          const active = location.pathname === item.path
+          return (
+            <button
+              key={item.path}
+              className={`nav-item ${active ? 'nav-item--active' : ''}`}
+              onClick={() => navigate(item.path)}
+              aria-current={active ? 'page' : undefined}
+            >
+              <span className="nav-item__icon">
+                <Icon name={item.icon} size={15} />
+              </span>
+              {item.label}
+              <span className="nav-item__num">{item.num}</span>
+            </button>
+          )
+        })}
 
-        <span className="nav-label" style={{ marginTop: '8px' }}>Sistema</span>
-        <button className="nav-item">
-          <span aria-hidden="true">⚙️</span> Configuracion
+        <span className="nav-label">Sistema</span>
+        <button className="nav-item" type="button">
+          <span className="nav-item__icon"><Icon name="settings" size={15} /></span>
+          Preferencias
+          <span className="nav-item__num">V</span>
         </button>
       </nav>
 
-      {/* Footer del sidebar con logout */}
       <div className="sidebar__footer">
-        <button className="nav-item" onClick={handleLogout}>
-          <span aria-hidden="true">🚪</span> Cerrar sesion
+        <div className="sidebar__user">
+          <div className="sidebar__avatar" aria-hidden="true">{initials}</div>
+          <div className="sidebar__user-info">
+            <div className="sidebar__user-name">{user?.nombre || 'Usuario'}</div>
+            <div className="sidebar__user-role">{user?.rol || 'Administrador'}</div>
+          </div>
+        </div>
+        <button className="sidebar__logout" onClick={handleLogout}>
+          <Icon name="exit" size={12} />
+          Cerrar sesión
         </button>
       </div>
     </aside>
