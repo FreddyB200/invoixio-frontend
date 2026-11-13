@@ -7,11 +7,13 @@ import { ServiciosStyles } from '../components/servicios/estilos.jsx'
 import ServiciosTab from '../components/servicios/ServiciosTab.jsx'
 import TarifasGrupoTab from '../components/servicios/TarifasGrupoTab.jsx'
 import OverridesTab from '../components/servicios/OverridesTab.jsx'
+import AjusteIpcTab from '../components/servicios/AjusteIpcTab.jsx'
 
 const TABS = [
   { id: 'servicios', etiqueta: 'Servicios', Componente: ServiciosTab },
   { id: 'tarifas', etiqueta: 'Tarifas por grupo', Componente: TarifasGrupoTab },
   { id: 'overrides', etiqueta: 'Overrides por cliente', Componente: OverridesTab },
+  { id: 'ajuste', etiqueta: 'Ajuste anual (IPC)', Componente: AjusteIpcTab },
 ]
 
 export default function ServiciosPage() {
