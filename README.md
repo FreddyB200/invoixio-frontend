@@ -24,7 +24,7 @@ activa en la barra superior (se envía como `X-Empresa-Id`).
 
 ## Cómo correrlo
 
-Requiere Node 20+ y el backend corriendo en `http://localhost:8080` (ver el README del backend: `docker compose up -d` y
+Requiere Node 22.12+ y el backend corriendo en `http://localhost:8080` (ver el README del backend: `docker compose up -d` y
 `./mvnw spring-boot:run`).
 
 ```bash
