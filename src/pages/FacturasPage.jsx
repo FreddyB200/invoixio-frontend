@@ -1,533 +1,361 @@
 /**
- * FacturasPage — ledger of invoices with creation flow.
+ * FacturasPage — facturación por periodo: generación en lote, emisión, pago y consulta.
  */
 
-import { useState, useMemo } from 'react'
+import { useCallback, useState } from 'react'
 import Sidebar from '../components/Sidebar.jsx'
 import Topbar from '../components/Topbar.jsx'
 import Icon from '../components/Icon.jsx'
-import { Modal, Toast, StatusChip } from '../components/SharedComponents.jsx'
-import { facturas as facturasData, clientes, productos, formatCurrency, formatDate } from '../data.js'
+import { KPICard, StatusChip, Toast } from '../components/SharedComponents.jsx'
+import { EmptyState, ErrorState, LoadingState, Pagination } from '../components/StateViews.jsx'
+import ConfirmModal from '../components/facturas/ConfirmModal.jsx'
+import FacturaDetalleModal from '../components/facturas/FacturaDetalleModal.jsx'
+import GenerarLoteModal from '../components/facturas/GenerarLoteModal.jsx'
+import { ESTADOS, MAX_PAGINAS_RESUMEN, resumirPeriodo } from '../components/facturas/resumen.js'
+import { mensajeAccion, plural } from '../components/facturas/mensajes.js'
+import { useAsync } from '../hooks/useAsync.js'
+import {
+  eliminarFactura, emitirFactura, emitirLote, listarFacturas, listarGrupos, marcarVencidas, pagarFactura,
+} from '../api/facturas.js'
+import {
+  ESTADO_FACTURA, formatCurrency, formatDate, formatPeriodo, periodoActual, sumarMeses,
+} from '../utils/format.js'
 
-const IVA_RATE = 0.19
+const TAMANO_PAGINA = 20
+
+const css = `
+.fa-periodo { display:flex; align-items:center; gap:8px; }
+.fa-periodo__label { min-width:150px; text-align:center; font-family:var(--font-serif); font-size:17px; text-transform:capitalize; color:var(--ink); }
+.fa-select { width:auto; padding:8px 14px; }
+.fa-num { font-family:var(--font-mono); font-size:12.5px; font-weight:500; letter-spacing:.04em; color:var(--ink); }
+.fa-num--borrador { color:var(--ink-4); font-style:italic; font-family:var(--font-sans); letter-spacing:0; }
+.fa-sub { display:block; font-size:11.5px; color:var(--ink-4); }
+.fa-fecha { font-family:var(--font-mono); font-size:12px; color:var(--ink-3); }
+.fa-acciones { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
+.fa-nota { font-size:12px; color:var(--ink-4); margin:-16px 0 20px; }
+.fa-reload { opacity:.6; transition:opacity .15s; }
+.fa-head-actions { display:flex; gap:10px; flex-wrap:wrap; }
+`
 
 function FacturasPage() {
-  const [facturas, setFacturas] = useState(facturasData)
-  const [mostrarForm, setMostrarForm] = useState(false)
-  const [search, setSearch]     = useState('')
-  const [filtroEstado, setFiltroEstado] = useState('')
-  const [lineas, setLineas]     = useState([])
-  const [clienteId, setClienteId] = useState('')
-  const [modalEstado, setModalEstado] = useState(null)
-  const [nuevoEstado, setNuevoEstado] = useState('')
-  const [toast, setToast]       = useState(null)
+  const [periodo, setPeriodo] = useState(() => periodoActual())
+  const [estado, setEstado] = useState('')
+  const [grupoId, setGrupoId] = useState('')
+  const [page, setPage] = useState(0)
+  const [version, setVersion] = useState(0)
+  const [modal, setModal] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [toast, setToast] = useState(null)
+  const cerrarToast = useCallback(() => setToast(null), [])
 
-  const totales = useMemo(() => {
-    const subtotal = lineas.reduce((acc, l) => {
-      const prod = productos.find(p => p.id === parseInt(l.productoId))
-      if (!prod) return acc
-      return acc + prod.precio * l.cantidad * (1 - l.descuento / 100)
-    }, 0)
-    return { subtotal, iva: subtotal * IVA_RATE, total: subtotal * (1 + IVA_RATE) }
-  }, [lineas])
+  const grupos = useAsync(listarGrupos, [])
+  const lista = useAsync(
+    () => listarFacturas({ periodo, estado, grupoId, page, size: TAMANO_PAGINA }),
+    [periodo, estado, grupoId, page, version],
+  )
+  const resumen = useAsync(() => resumirPeriodo({ periodo, grupoId }), [periodo, grupoId, version])
 
-  const filtradas = useMemo(() =>
-    facturas.filter(f =>
-      (f.numero.toLowerCase().includes(search.toLowerCase()) || f.cliente.toLowerCase().includes(search.toLowerCase())) &&
-      (!filtroEstado || f.estado === filtroEstado)
-    ), [facturas, search, filtroEstado])
+  const listaGrupos = grupos.data?.content ?? []
+  const nombreGrupo = listaGrupos.find((g) => String(g.id) === String(grupoId))?.nombre
+  const refrescar = () => setVersion((v) => v + 1)
+  const cerrarModal = () => setModal(null)
 
-  const agregarLinea = () => setLineas(prev => [...prev, { productoId: '', cantidad: 1, descuento: 0 }])
-  const actualizarLinea = (i, campo, valor) =>
-    setLineas(prev => prev.map((l, idx) => idx === i ? { ...l, [campo]: valor } : l))
-  const eliminarLinea = (i) => setLineas(prev => prev.filter((_, idx) => idx !== i))
+  const cambiarPeriodo = (nuevo) => { setPeriodo(nuevo); setPage(0) }
+  const cambiarEstado = (v) => { setEstado(v); setPage(0) }
+  const cambiarGrupo = (v) => { setGrupoId(v); setPage(0) }
 
-  const nextNumero = `FV-2026-0${(35 + facturas.length + 1).toString().padStart(3, '0')}`
-
-  const guardarFactura = () => {
-    if (!clienteId) { setToast({ message: 'Selecciona un cliente', type: 'error' }); return }
-    if (lineas.filter(l => l.productoId).length === 0) { setToast({ message: 'Agrega al menos un producto', type: 'error' }); return }
-
-    const cliente = clientes.find(c => c.id === parseInt(clienteId))
-    const num = nextNumero
-
-    setFacturas(prev => [{
-      id: Date.now(), numero: num,
-      cliente: cliente.razonSocial,
-      fecha: new Date().toISOString().split('T')[0],
-      total: totales.total, estado: 'Emitida'
-    }, ...prev])
-
-    setMostrarForm(false); setLineas([]); setClienteId('')
-    setToast({ message: `Factura ${num} creada exitosamente`, type: 'success' })
+  const fallo = (err) => {
+    setToast({ message: mensajeAccion(err), type: 'error' })
+    if (err?.status === 404 || err?.status === 422) refrescar()
   }
+
+  /** Ejecuta una acción de escritura: toast de éxito o de error, cierra el modal de confirmación y recarga. */
+  const ejecutar = async (accion, mensajeOk) => {
+    setBusy(true)
+    try {
+      const res = await accion()
+      setToast({ message: mensajeOk(res), type: 'success' })
+      cerrarModal()
+      refrescar()
+    } catch (err) {
+      cerrarModal()
+      fallo(err)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const emitirUna = (f) => ejecutar(
+    () => emitirFactura(f.id),
+    (r) => `Factura ${r.numero} emitida.`,
+  )
+  const emitirBorradores = () => ejecutar(
+    () => emitirLote({ periodo, grupoId: grupoId ? Number(grupoId) : undefined }),
+    (r) => (r.emitidas === 0
+      ? 'No había borradores por emitir en este periodo.'
+      : `${r.emitidas} ${plural(r.emitidas, 'factura emitida', 'facturas emitidas')} (${r.primerNumero} a ${r.ultimoNumero}).`),
+  )
+  const pagar = (f) => ejecutar(
+    () => pagarFactura(f.id),
+    () => `Pago registrado para ${f.numero || 'la factura'}.`,
+  )
+  const eliminar = (f) => ejecutar(
+    () => eliminarFactura(f.id),
+    () => 'Borrador eliminado.',
+  )
+  const vencidas = () => ejecutar(
+    () => marcarVencidas(),
+    (r) => (r.marcadas === 0
+      ? 'No hay facturas emitidas con el plazo cumplido.'
+      : `${r.marcadas} ${plural(r.marcadas, 'factura marcada', 'facturas marcadas')} como vencidas.`),
+  )
+
+  const filas = lista.data?.content ?? []
+  const etiquetaFila = (f) => f.numero || `borrador de ${f.cliente?.nombre}`
+  const kpis = [
+    { estado: 'BORRADOR', label: 'Borradores', accent: 'ink', num: 'N° 01' },
+    { estado: 'EMITIDA', label: 'Emitidas', accent: 'amber', num: 'N° 02' },
+    { estado: 'VENCIDA', label: 'Vencidas', accent: 'oxblood', num: 'N° 03' },
+    { estado: 'PAGADA', label: 'Pagadas', accent: 'moss', num: 'N° 04' },
+  ]
+  const porEstado = resumen.data?.porEstado
 
   return (
     <div className="layout">
       <Sidebar />
       <div className="main-wrap">
         <Topbar title="Facturación" eyebrow="Módulo II · Operaciones" />
-
-        <style>{`
-          .invoice-form {
-            margin-bottom: 28px;
-            overflow: hidden;
-            animation: slideUp 0.25s cubic-bezier(.2,.7,.2,1);
-          }
-          .invoice-form__banner {
-            background: var(--ink);
-            color: var(--paper);
-            padding: 20px 26px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-          }
-          .invoice-form__banner-left {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-          }
-          .invoice-form__banner-eyebrow {
-            font-family: var(--font-mono);
-            font-size: 9.5px;
-            letter-spacing: 0.24em;
-            text-transform: uppercase;
-            color: #c8bea8;
-          }
-          .invoice-form__banner-title {
-            font-family: var(--font-serif);
-            font-size: 22px;
-            font-weight: 500;
-            letter-spacing: -0.01em;
-          }
-          .invoice-form__banner-title em {
-            font-style: italic;
-            color: #e8b596;
-          }
-          .invoice-form__banner-meta {
-            text-align: right;
-            font-family: var(--font-mono);
-            font-size: 10px;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            color: #c8bea8;
-            line-height: 1.5;
-          }
-          .invoice-form__banner-meta strong {
-            display: block;
-            font-family: var(--font-mono);
-            font-size: 14px;
-            color: var(--paper);
-            letter-spacing: 0.04em;
-          }
-
-          .invoice-form__lines {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          .invoice-form__lines thead tr {
-            border-bottom: 1px solid var(--ink);
-          }
-          .invoice-form__lines th {
-            padding: 8px 10px;
-            background: transparent;
-          }
-          .invoice-form__lines td {
-            padding: 8px 10px;
-            border-bottom: 1px dashed var(--rule);
-          }
-          .invoice-form__lines select,
-          .invoice-form__lines input {
-            width: 100%;
-            border: none;
-            background: transparent;
-            outline: none;
-            font-family: var(--font-sans);
-            font-size: 13px;
-            padding: 6px 4px;
-            color: var(--ink);
-          }
-          .invoice-form__lines select:focus,
-          .invoice-form__lines input:focus {
-            background: var(--paper-2);
-            border-radius: 2px;
-          }
-          .invoice-form__lines .num-field {
-            font-family: var(--font-mono);
-            text-align: right;
-          }
-          .invoice-form__lines .ll-sub {
-            font-family: var(--font-mono);
-            text-align: right;
-            font-weight: 500;
-            color: var(--ink);
-          }
-          .invoice-form__lines .ll-delete {
-            background: none;
-            border: none;
-            color: var(--ink-4);
-            cursor: pointer;
-            padding: 4px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .invoice-form__lines .ll-delete:hover { color: var(--oxblood); }
-
-          .invoice-form__addline {
-            margin: 16px 0 22px;
-            font-family: var(--font-mono);
-            font-size: 10.5px;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-          }
-
-          .invoice-totals {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 18px;
-          }
-          .invoice-totals__box {
-            min-width: 320px;
-            background: var(--paper);
-            border: 1px solid var(--ink);
-            padding: 18px 22px;
-          }
-          .invoice-totals__row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            font-size: 13px;
-            color: var(--ink-2);
-          }
-          .invoice-totals__row span:last-child {
-            font-family: var(--font-mono);
-            color: var(--ink);
-          }
-          .invoice-totals__total {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            padding-top: 12px;
-            margin-top: 8px;
-            border-top: 1px solid var(--ink);
-          }
-          .invoice-totals__total-label {
-            font-family: var(--font-mono);
-            font-size: 10px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
-            color: var(--ink-3);
-          }
-          .invoice-totals__total-value {
-            font-family: var(--font-mono);
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--ink);
-            letter-spacing: -0.01em;
-          }
-
-          .invoice-form__actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            margin-top: 22px;
-            padding-top: 20px;
-            border-top: 1px solid var(--rule-soft);
-          }
-
-          .fv-num {
-            font-family: var(--font-mono);
-            font-size: 12.5px;
-            font-weight: 500;
-            letter-spacing: 0.04em;
-            color: var(--ink);
-          }
-        `}</style>
+        <style>{css}</style>
 
         <main className="page-content">
-
-          {/* Page header */}
           <div className="page-header">
             <div className="page-header__left">
-              <span className="page-header__eyebrow">
-                Módulo II <span>·</span> Facturación electrónica
-              </span>
+              <span className="page-header__eyebrow">Módulo II <span>·</span> Facturación por periodo</span>
               <h1>Gestión de <em>facturas</em></h1>
-              <p>Emite, consulta y actualiza el ciclo de vida de las facturas de venta bajo la normativa DIAN.</p>
+              <p>Genera las cuotas del mes a partir de las tarifas, emítelas en lote y registra los pagos.</p>
             </div>
-            <button
-              className="btn btn--primary"
-              onClick={() => { setMostrarForm(!mostrarForm); if (!mostrarForm && lineas.length === 0) agregarLinea() }}
-            >
-              <Icon name={mostrarForm ? 'close' : 'plus'} size={13} />
-              {mostrarForm ? 'Cerrar borrador' : 'Nueva factura'}
-            </button>
+            <div className="fa-head-actions">
+              <button type="button" className="btn btn--ghost" onClick={vencidas} disabled={busy}>
+                <Icon name="warning" size={13} />
+                Marcar vencidas
+              </button>
+              <button type="button" className="btn btn--secondary" onClick={() => setModal({ tipo: 'emitirLote' })}>
+                <Icon name="check" size={13} />
+                Emitir borradores
+              </button>
+              <button type="button" className="btn btn--primary" onClick={() => setModal({ tipo: 'generar' })}>
+                <Icon name="plus" size={13} />
+                Generar facturas del periodo
+              </button>
+            </div>
           </div>
 
-          {/* Form */}
-          {mostrarForm && (
-            <div className="card invoice-form">
-              <div className="invoice-form__banner">
-                <div className="invoice-form__banner-left">
-                  <span className="invoice-form__banner-eyebrow">Borrador · Factura de venta</span>
-                  <span className="invoice-form__banner-title">Documento <em>electrónico</em></span>
-                </div>
-                <div className="invoice-form__banner-meta">
-                  <strong>{nextNumero}</strong>
-                  <span>{new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
-                </div>
-              </div>
-
-              <div className="card__body">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="cliente-select">Cliente *</label>
-                    <select
-                      id="cliente-select"
-                      className="form-select"
-                      value={clienteId}
-                      onChange={e => setClienteId(e.target.value)}
-                    >
-                      <option value="">— Selecciona un cliente —</option>
-                      {clientes.filter(c => c.activo).map(c => (
-                        <option key={c.id} value={c.id}>{c.razonSocial} — {c.nit}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Condición de pago</label>
-                    <select className="form-select" defaultValue="contado">
-                      <option value="contado">Contado</option>
-                      <option value="credito-15">Crédito 15 días</option>
-                      <option value="credito-30">Crédito 30 días</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="invoice-form__lines">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '40%' }}>Producto / Servicio</th>
-                        <th style={{ width: '10%', textAlign: 'right' }}>Cant.</th>
-                        <th style={{ width: '18%', textAlign: 'right' }}>P. Unitario</th>
-                        <th style={{ width: '10%', textAlign: 'right' }}>Desc. %</th>
-                        <th style={{ width: '18%', textAlign: 'right' }}>Subtotal</th>
-                        <th style={{ width: '4%' }}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lineas.map((l, i) => {
-                        const prod = productos.find(p => p.id === parseInt(l.productoId))
-                        const subtotalLinea = prod ? prod.precio * l.cantidad * (1 - l.descuento / 100) : 0
-                        return (
-                          <tr key={i}>
-                            <td>
-                              <select
-                                value={l.productoId}
-                                onChange={e => actualizarLinea(i, 'productoId', e.target.value)}
-                              >
-                                <option value="">— Seleccionar producto —</option>
-                                {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                              </select>
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                min="1"
-                                className="num-field"
-                                value={l.cantidad}
-                                onChange={e => actualizarLinea(i, 'cantidad', parseInt(e.target.value) || 1)}
-                              />
-                            </td>
-                            <td className="num-field" style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
-                              {prod ? formatCurrency(prod.precio) : '—'}
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                className="num-field"
-                                value={l.descuento}
-                                onChange={e => actualizarLinea(i, 'descuento', parseFloat(e.target.value) || 0)}
-                              />
-                            </td>
-                            <td className="ll-sub">
-                              {subtotalLinea ? formatCurrency(subtotalLinea) : '—'}
-                            </td>
-                            <td>
-                              <button
-                                className="ll-delete"
-                                onClick={() => eliminarLinea(i)}
-                                aria-label="Eliminar línea"
-                              >
-                                <Icon name="close" size={13} />
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <button
-                  className="btn btn--ghost btn--sm invoice-form__addline"
-                  onClick={agregarLinea}
-                >
-                  <Icon name="plus" size={12} />
-                  Agregar línea
-                </button>
-
-                <div className="invoice-totals">
-                  <div className="invoice-totals__box">
-                    <div className="invoice-totals__row">
-                      <span>Subtotal</span><span>{formatCurrency(totales.subtotal)}</span>
-                    </div>
-                    <div className="invoice-totals__row">
-                      <span>IVA (19 %)</span><span>{formatCurrency(totales.iva)}</span>
-                    </div>
-                    <div className="invoice-totals__total">
-                      <span className="invoice-totals__total-label">Total COP</span>
-                      <span className="invoice-totals__total-value">{formatCurrency(totales.total)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="invoice-form__actions">
-                  <button
-                    className="btn btn--ghost"
-                    onClick={() => { setMostrarForm(false); setLineas([]); setClienteId('') }}
-                  >
-                    Cancelar
-                  </button>
-                  <button className="btn btn--primary" onClick={guardarFactura}>
-                    <Icon name="check" size={13} />
-                    Emitir factura
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Filters */}
           <div className="toolbar">
-            <div className="search-wrap">
-              <span className="search-wrap__icon">
-                <Icon name="search" size={14} />
-              </span>
-              <input
-                type="search"
-                className="search-input"
-                placeholder="Buscar por factura o cliente…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+            <div className="fa-periodo" role="group" aria-label="Periodo">
+              <button
+                type="button" className="btn btn--ghost btn--sm" aria-label="Periodo anterior"
+                onClick={() => cambiarPeriodo(sumarMeses(periodo, -1))}
+              >‹</button>
+              <span className="fa-periodo__label" aria-live="polite">{formatPeriodo(periodo)}</span>
+              <button
+                type="button" className="btn btn--ghost btn--sm" aria-label="Periodo siguiente"
+                onClick={() => cambiarPeriodo(sumarMeses(periodo, 1))}
+              >›</button>
+              {periodo !== periodoActual() && (
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => cambiarPeriodo(periodoActual())}>
+                  Periodo actual
+                </button>
+              )}
             </div>
             <select
-              className="form-select"
-              style={{ width: 'auto', padding: '8px 14px' }}
-              value={filtroEstado}
-              onChange={e => setFiltroEstado(e.target.value)}
+              className="form-select fa-select" aria-label="Filtrar por estado" value={estado}
+              onChange={(e) => cambiarEstado(e.target.value)}
             >
               <option value="">Todos los estados</option>
-              {['Emitida', 'Pagada', 'Vencida', 'Anulada'].map(e => <option key={e}>{e}</option>)}
+              {ESTADOS.map((e) => <option key={e} value={e}>{ESTADO_FACTURA[e]}</option>)}
+            </select>
+            <select
+              className="form-select fa-select" aria-label="Filtrar por grupo" value={grupoId}
+              onChange={(e) => cambiarGrupo(e.target.value)}
+            >
+              <option value="">Todos los grupos</option>
+              {listaGrupos.map((g) => <option key={g.id} value={g.id}>{g.nombre}</option>)}
             </select>
             <span className="toolbar__count">
-              <strong>{filtradas.length.toString().padStart(2, '0')}</strong> factura(s)
+              <strong>{lista.data ? lista.data.totalElements : '—'}</strong> {plural(lista.data?.totalElements, 'factura', 'facturas')}
             </span>
           </div>
 
-          {/* Table */}
+          <div className="kpi-grid" aria-label={`Resumen de ${formatPeriodo(periodo)}`}>
+            {kpis.map((k) => {
+              const r = porEstado?.[k.estado]
+              return (
+                <KPICard
+                  key={k.estado}
+                  label={k.label}
+                  num={k.num}
+                  accent={k.accent}
+                  value={r ? formatCurrency(r.total) : resumen.error ? '—' : '…'}
+                  trend={{ dir: 'flat', text: r ? `${r.cantidad} ${plural(r.cantidad, 'factura', 'facturas')}` : ' ' }}
+                />
+              )
+            })}
+          </div>
+          {resumen.data?.parcial && (
+            <p className="fa-nota">
+              Resumen parcial: se sumaron las primeras {MAX_PAGINAS_RESUMEN * 100} facturas del periodo.
+            </p>
+          )}
+
           <div className="card">
             <div className="card__header">
               <div className="card__title-wrap">
                 <span className="card__eyebrow">Libro auxiliar</span>
-                <span className="card__title">Historial de <em>facturas</em></span>
+                <span className="card__title">Facturas de <em>{formatPeriodo(periodo)}</em></span>
               </div>
-              <span className="card__meta">Ordenado por fecha desc.</span>
+              <span className="card__meta">{nombreGrupo || 'Todos los grupos'}</span>
             </div>
             <div className="card__body" style={{ padding: 0 }}>
-              <table aria-label="Historial de facturas">
-                <thead>
-                  <tr>
-                    <th>N° Factura</th>
-                    <th>Cliente</th>
-                    <th>Fecha</th>
-                    <th style={{ textAlign: 'right' }}>Total</th>
-                    <th>Estado</th>
-                    <th style={{ textAlign: 'right' }}>Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtradas.map(f => (
-                    <tr key={f.id}>
-                      <td><span className="fv-num">{f.numero}</span></td>
-                      <td>{f.cliente}</td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--ink-3)' }}>
-                        {formatDate(f.fecha)}
-                      </td>
-                      <td className="num-cell">{formatCurrency(f.total)}</td>
-                      <td><StatusChip status={f.estado} /></td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => { setModalEstado({ id: f.id, estado: f.estado }); setNuevoEstado(f.estado) }}
-                          aria-label={`Cambiar estado de ${f.numero}`}
-                        >
-                          <Icon name="refresh" size={11} />
-                          Estado
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {lista.loading && !lista.data && <LoadingState label="Cargando facturas…" />}
+              {lista.error && !lista.data && <ErrorState error={lista.error} onRetry={lista.reload} />}
+              {lista.data && filas.length === 0 && (
+                <EmptyState
+                  title="No hay facturas para estos filtros"
+                  hint="Usa «Generar facturas del periodo» para crear los borradores a partir de las tarifas."
+                />
+              )}
+              {lista.data && filas.length > 0 && (
+                <div className={lista.loading ? 'fa-reload' : undefined} style={{ overflowX: 'auto' }}>
+                  <table aria-label="Facturas del periodo">
+                    <thead>
+                      <tr>
+                        <th>N° Factura</th>
+                        <th>Cliente</th>
+                        <th>Grupo</th>
+                        <th>Periodo</th>
+                        <th>Vencimiento</th>
+                        <th style={{ textAlign: 'right' }}>Total</th>
+                        <th>Estado</th>
+                        <th style={{ textAlign: 'right' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filas.map((f) => (
+                        <tr key={f.id}>
+                          <td>
+                            {f.numero
+                              ? <span className="fa-num">{f.numero}</span>
+                              : <span className="fa-num fa-num--borrador">Borrador</span>}
+                          </td>
+                          <td>
+                            {f.cliente?.nombre}
+                            {f.cliente?.unidad && <span className="fa-sub">{f.cliente.unidad}</span>}
+                          </td>
+                          <td>{f.cliente?.grupoNombre || '—'}</td>
+                          <td className="fa-fecha">{formatPeriodo(f.periodo)}</td>
+                          <td className="fa-fecha">{formatDate(f.fechaVencimiento)}</td>
+                          <td className="num-cell">{formatCurrency(f.total)}</td>
+                          <td><StatusChip status={ESTADO_FACTURA[f.estado] || f.estado} /></td>
+                          <td>
+                            <div className="fa-acciones">
+                              <button
+                                type="button" className="btn btn--ghost btn--sm"
+                                aria-label={`Ver detalle de ${etiquetaFila(f)}`}
+                                onClick={() => setModal({ tipo: 'detalle', factura: f })}
+                              >
+                                <Icon name="eye" size={11} /> Ver
+                              </button>
+                              {f.estado === 'BORRADOR' && (
+                                <button
+                                  type="button" className="btn btn--secondary btn--sm" disabled={busy}
+                                  aria-label={`Emitir ${etiquetaFila(f)}`}
+                                  onClick={() => emitirUna(f)}
+                                >
+                                  Emitir
+                                </button>
+                              )}
+                              {(f.estado === 'EMITIDA' || f.estado === 'VENCIDA') && (
+                                <button
+                                  type="button" className="btn btn--secondary btn--sm"
+                                  aria-label={`Registrar pago de ${etiquetaFila(f)}`}
+                                  onClick={() => setModal({ tipo: 'pagar', factura: f })}
+                                >
+                                  Registrar pago
+                                </button>
+                              )}
+                              {f.estado === 'BORRADOR' && (
+                                <button
+                                  type="button" className="btn btn--danger btn--sm"
+                                  aria-label={`Eliminar ${etiquetaFila(f)}`}
+                                  onClick={() => setModal({ tipo: 'eliminar', factura: f })}
+                                >
+                                  <Icon name="trash" size={11} /> Eliminar
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
+          {lista.data && (
+            <Pagination
+              page={lista.data.page}
+              totalPages={lista.data.totalPages}
+              totalElements={lista.data.totalElements}
+              onPage={setPage}
+            />
+          )}
         </main>
       </div>
 
-      {modalEstado && (
-        <Modal
-          isOpen={!!modalEstado}
-          onClose={() => setModalEstado(null)}
-          eyebrow="Actualización de estado"
-          title="Cambiar estado de factura"
-          footer={
-            <>
-              <button className="btn btn--ghost" onClick={() => setModalEstado(null)}>Cancelar</button>
-              <button className="btn btn--primary" onClick={() => {
-                setFacturas(prev => prev.map(f => f.id === modalEstado.id ? { ...f, estado: nuevoEstado } : f))
-                setModalEstado(null)
-                setToast({ message: `Estado actualizado a: ${nuevoEstado}`, type: 'success' })
-              }}>
-                Aplicar cambio
-              </button>
-            </>
-          }
+      {modal?.tipo === 'generar' && (
+        <GenerarLoteModal
+          periodoInicial={periodo}
+          grupoInicial={grupoId}
+          grupos={listaGrupos}
+          onHecho={refrescar}
+          onError={fallo}
+          onClose={cerrarModal}
+        />
+      )}
+      {modal?.tipo === 'detalle' && (
+        <FacturaDetalleModal facturaId={modal.factura.id} onClose={cerrarModal} />
+      )}
+      {modal?.tipo === 'emitirLote' && (
+        <ConfirmModal
+          eyebrow="Emisión en lote" title="Emitir borradores" confirmLabel="Emitir borradores"
+          busy={busy} onConfirm={emitirBorradores} onClose={cerrarModal}
         >
-          <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--ink-3)' }}>
-            Estado actual: <StatusChip status={modalEstado.estado} />
-          </p>
-          <div className="form-group">
-            <label className="form-label" htmlFor="nuevo-estado">Nuevo estado</label>
-            <select
-              id="nuevo-estado"
-              className="form-select"
-              value={nuevoEstado}
-              onChange={e => setNuevoEstado(e.target.value)}
-            >
-              {['Emitida', 'Pagada', 'Vencida', 'Anulada'].map(e => <option key={e}>{e}</option>)}
-            </select>
-          </div>
-        </Modal>
+          Se emitirán todos los borradores de {formatPeriodo(periodo)}
+          {nombreGrupo ? ` del grupo ${nombreGrupo}` : ''} y recibirán su número consecutivo.
+          Esta acción no se puede deshacer.
+        </ConfirmModal>
+      )}
+      {modal?.tipo === 'pagar' && (
+        <ConfirmModal
+          eyebrow="Registro de pago" title="Registrar pago" confirmLabel="Confirmar pago"
+          busy={busy} onConfirm={() => pagar(modal.factura)} onClose={cerrarModal}
+        >
+          ¿Confirmas el pago de {modal.factura.numero || 'esta factura'} de {modal.factura.cliente?.nombre} por{' '}
+          <strong>{formatCurrency(modal.factura.total)}</strong>? La factura pasará a Pagada con la fecha de hoy.
+        </ConfirmModal>
+      )}
+      {modal?.tipo === 'eliminar' && (
+        <ConfirmModal
+          eyebrow="Eliminar borrador" title="Eliminar borrador" confirmLabel="Eliminar" tono="danger"
+          busy={busy} onConfirm={() => eliminar(modal.factura)} onClose={cerrarModal}
+        >
+          ¿Eliminar el borrador de {modal.factura.cliente?.nombre} de {formatPeriodo(modal.factura.periodo)}?
+          Podrás volver a generarlo con «Generar facturas del periodo».
+        </ConfirmModal>
       )}
 
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={cerrarToast} />}
     </div>
   )
 }
