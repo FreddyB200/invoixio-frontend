@@ -9,7 +9,17 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    proxy: { '/api': { target: API, changeOrigin: true } },
+    proxy: {
+      '/api': {
+        target: API,
+        changeOrigin: true,
+        // El navegador habla con Vite (mismo origen); sin Origin el backend no aplica CORS,
+        // asi el login funciona aunque Vite use otro puerto (3001, 5174...).
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'))
+        },
+      },
+    },
   },
   test: {
     environment: 'jsdom',
