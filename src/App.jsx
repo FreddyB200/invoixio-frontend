@@ -11,7 +11,10 @@ import LoginPage from './pages/LoginPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import FacturasPage from './pages/FacturasPage.jsx'
 import ClientesPage from './pages/ClientesPage.jsx'
-import InventarioPage from './pages/InventarioPage.jsx'
+import GruposPage from './pages/GruposPage.jsx'
+import ServiciosPage from './pages/ServiciosPage.jsx'
+import CarteraPage from './pages/CarteraPage.jsx'
+import EmpleadosPage from './pages/EmpleadosPage.jsx'
 
 /**
  * Componente principal App
@@ -36,8 +39,17 @@ function App() {
         <Route path="/clientes" element={
           <PrivateRoute><ClientesPage /></PrivateRoute>
         } />
-        <Route path="/inventario" element={
-          <PrivateRoute><InventarioPage /></PrivateRoute>
+        <Route path="/cartera" element={
+          <PrivateRoute><CarteraPage /></PrivateRoute>
+        } />
+        <Route path="/grupos" element={
+          <PrivateRoute><GruposPage /></PrivateRoute>
+        } />
+        <Route path="/servicios" element={
+          <PrivateRoute><ServiciosPage /></PrivateRoute>
+        } />
+        <Route path="/empleados" element={
+          <PrivateRoute><EmpleadosPage /></PrivateRoute>
         } />
 
         {/* Redireccion por defecto al dashboard */}

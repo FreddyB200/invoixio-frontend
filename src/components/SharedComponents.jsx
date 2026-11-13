@@ -109,6 +109,7 @@ export function KPICard({ label, value, num, trend, accent = 'ink' }) {
  * StatusChip — compact status indicator.
  */
 const STATUS_MAP = {
+  'Borrador': 'gray',
   'Emitida':  'yellow',
   'Pagada':   'green',
   'Vencida':  'red',

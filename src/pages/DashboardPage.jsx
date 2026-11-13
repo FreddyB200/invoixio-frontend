@@ -1,6 +1,7 @@
 /**
- * DashboardPage — editorial executive overview.
- * Headline KPIs, weekly ledger chart, activity feed, quick actions.
+ * DashboardPage — resumen ejecutivo del periodo con datos reales de la API.
+ * KPIs de clientes, recaudo y cartera, facturas por estado, mayores morosos y facturas por cobrar.
+ * Cada bloque carga y falla por separado.
  */
 
 import { useNavigate } from 'react-router-dom'
@@ -8,55 +9,91 @@ import Sidebar from '../components/Sidebar.jsx'
 import Topbar from '../components/Topbar.jsx'
 import Icon from '../components/Icon.jsx'
 import { KPICard, StatusChip } from '../components/SharedComponents.jsx'
-import { facturas, clientes, formatCurrency } from '../data.js'
+import { LoadingState, ErrorState } from '../components/StateViews.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
+import { useAsync } from '../hooks/useAsync.js'
+import { cargarResumen, MAX_PAGINAS_TOTALES, TAMANO_PAGINA } from '../api/resumen.js'
+import { formatCurrency, formatDate, formatPeriodo, periodoActual, ESTADO_FACTURA } from '../utils/format.js'
 
-const VENTAS_SEMANA = [
-  { dia: 'LUN', valor: 1800000 },
-  { dia: 'MAR', valor: 3200000 },
-  { dia: 'MIÉ', valor: 2100000 },
-  { dia: 'JUE', valor: 4500000 },
-  { dia: 'VIE', valor: 2900000 },
-  { dia: 'SÁB', valor: 3800000 },
-  { dia: 'HOY', valor: 2450000 },
-]
-const MAX_VENTA = Math.max(...VENTAS_SEMANA.map(v => v.valor))
-const TOTAL_SEMANA = VENTAS_SEMANA.reduce((a, v) => a + v.valor, 0)
-const AVG_SEMANA = TOTAL_SEMANA / VENTAS_SEMANA.length
+const BLOQUES = ['clientes', 'conteos', 'totales', 'cartera', 'impagas']
 
-const ACTIVIDAD = [
-  { kind: 'factura',  text: 'Factura FV-2026-0035 emitida · Comercial Andina',          time: 'hace 10 min' },
-  { kind: 'pagada',   text: 'Factura FV-2026-0031 marcada como Pagada',                  time: 'hace 1 h'    },
-  { kind: 'stock',    text: 'Stock crítico · Monitor 27" Full HD (3 uds.)',              time: 'hace 2 h'    },
-  { kind: 'cliente',  text: 'Nuevo cliente registrado · Tech Solutions Colombia',        time: 'hace 3 h'    },
+const ROL_LABEL = {
+  ADMIN_GENERAL: 'Administrador general',
+  ADMIN_EMPRESA: 'Administrador de empresa',
+  CONTADOR: 'Contador · vista contable',
+}
+
+const BARRAS = [
+  { estado: 'BORRADOR', clase: 'borrador' },
+  { estado: 'EMITIDA', clase: 'emitida' },
+  { estado: 'PAGADA', clase: 'pagada' },
+  { estado: 'VENCIDA', clase: 'vencida' },
 ]
 
 const KIND_META = {
-  factura: { label: 'I', color: 'var(--ink)',      bg: 'var(--paper-2)'    },
-  pagada:  { label: '✓', color: 'var(--moss)',     bg: 'var(--moss-wash)'  },
-  stock:   { label: '!', color: 'var(--oxblood)',  bg: 'var(--oxblood-wash)'},
-  cliente: { label: '§', color: 'var(--slate)',    bg: 'var(--slate-wash)' },
+  VENCIDA: { label: '!', color: 'var(--oxblood)', bg: 'var(--oxblood-wash)' },
+  EMITIDA: { label: 'I', color: 'var(--ink)', bg: 'var(--paper-2)' },
 }
 
-const QUICK_ACTIONS = [
-  { icon: 'document', label: 'Nueva factura',      meta: 'FV — 2026',    path: '/facturas',   primary: true },
-  { icon: 'users',    label: 'Registrar cliente',  meta: 'Directorio',    path: '/clientes'  },
-  { icon: 'package',  label: 'Agregar producto',   meta: 'Catálogo',      path: '/inventario' },
-  { icon: 'spark',    label: 'Reporte de cartera', meta: 'PDF · XLSX',    path: '/facturas'  },
-]
+const NO_DISPONIBLE = { dir: 'warn', text: 'No se pudo cargar' }
+
+/** Resuelve un bloque: cargando, error con reintento o su contenido. */
+function Bloque({ estado, onRetry, children }) {
+  if (!estado) return <LoadingState />
+  if (estado.error) return <ErrorState error={estado.error} onRetry={onRetry} />
+  return children(estado.data)
+}
+
+/** Valor y tendencia de un KPI según el estado del bloque que lo alimenta. */
+function kpi(estado, valor, tendencia) {
+  if (!estado) return { value: '…', trend: { dir: 'flat', text: 'Cargando' } }
+  if (estado.error) return { value: '—', trend: NO_DISPONIBLE }
+  return { value: valor(estado.data), trend: tendencia(estado.data) }
+}
 
 function DashboardPage() {
   const navigate = useNavigate()
+  const { user, empresas, empresaId, esGeneral, puedeVerEmpleados } = useAuth()
+  const periodo = periodoActual()
+  const { data, error, reload } = useAsync(() => cargarResumen(periodo), [periodo])
 
-  const ventasHoy = 2450000
-  const facturasEmitidas   = facturas.filter(f => f.estado === 'Emitida').length
-  const facturasPendientes = facturas.filter(f => f.estado !== 'Pagada').length
-  const clientesActivos    = clientes.filter(c => c.activo).length
+  const resumen = data ?? (error ? Object.fromEntries(BLOQUES.map((b) => [b, { error }])) : null)
+  const estado = (b) => resumen?.[b]
+  const empresa = esGeneral ? empresas?.find((e) => e.id === empresaId)?.nombre : null
+
+  const kClientes = kpi(estado('clientes'), (n) => n, () => ({ dir: 'up', text: 'En directorio' }))
+  const kRecaudado = kpi(
+    estado('totales'),
+    (t) => formatCurrency(t.recaudado),
+    (t) => (t.truncado
+      ? { dir: 'warn', text: `Parcial: primeras ${MAX_PAGINAS_TOTALES * TAMANO_PAGINA} facturas` }
+      : { dir: 'up', text: `De ${formatCurrency(t.facturado)} facturado` }),
+  )
+  const kPorCobrar = kpi(
+    estado('totales'),
+    (t) => formatCurrency(t.porCobrar),
+    () => ({ dir: 'warn', text: 'Emitidas y vencidas' }),
+  )
+  const kCartera = kpi(
+    estado('cartera'),
+    (c) => formatCurrency(c.totalAdeudado),
+    (c) => ({ dir: c.totalClientes > 0 ? 'warn' : 'up', text: `${c.totalClientes} ${c.totalClientes === 1 ? 'cliente en mora' : 'clientes en mora'}` }),
+  )
+
+  const atajos = [
+    { icon: 'document', label: 'Facturar periodo', meta: formatPeriodo(periodo), path: '/facturas', primary: true },
+    { icon: 'warning', label: 'Revisar cartera', meta: 'Cobranza', path: '/cartera' },
+    { icon: 'users', label: 'Consultar clientes', meta: 'Directorio', path: '/clientes' },
+    puedeVerEmpleados
+      ? { icon: 'lock', label: 'Gestionar personal', meta: 'Empleados', path: '/empleados' }
+      : { icon: 'box', label: 'Ver grupos', meta: 'Conjuntos y sedes', path: '/grupos' },
+  ]
 
   return (
     <div className="layout">
       <Sidebar />
       <div className="main-wrap">
-        <Topbar title="Resumen General" eyebrow="Mesa de Trabajo · Vol. I" />
+        <Topbar title="Resumen General" eyebrow="Panel de control" />
 
         <style>{`
           .dash-hero {
@@ -73,7 +110,7 @@ function DashboardPage() {
           .dash-hero__eyebrow {
             font-family: var(--font-mono);
             font-size: 10px;
-            letter-spacing: 0.24em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
             display: flex;
@@ -88,18 +125,17 @@ function DashboardPage() {
             background: var(--rule);
           }
           .dash-hero__title {
-            font-family: var(--font-serif);
-            font-variation-settings: "SOFT" 30;
-            font-size: 44px;
-            font-weight: 400;
+            font-family: var(--font-display);
+            font-size: 30px;
+            font-weight: 600;
             letter-spacing: -0.025em;
             line-height: 1.02;
             color: var(--ink);
             max-width: 780px;
           }
           .dash-hero__title em {
-            font-style: italic;
-            color: var(--oxblood);
+            font-style: normal;
+            color: var(--brand);
           }
           .dash-hero__byline {
             display: flex;
@@ -107,7 +143,7 @@ function DashboardPage() {
             margin-top: 14px;
             font-family: var(--font-mono);
             font-size: 10.5px;
-            letter-spacing: 0.14em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
           }
@@ -135,7 +171,7 @@ function DashboardPage() {
           .chart__total-label {
             font-family: var(--font-mono);
             font-size: 10px;
-            letter-spacing: 0.2em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
             display: block;
@@ -174,7 +210,7 @@ function DashboardPage() {
             font-family: var(--font-mono);
             font-size: 9.5px;
             color: var(--ink-5);
-            letter-spacing: 0.08em;
+            letter-spacing: 0.05em;
             padding-right: 10px;
             background: var(--surface);
           }
@@ -236,7 +272,7 @@ function DashboardPage() {
             font-family: var(--font-mono);
             font-size: 10px;
             font-weight: 500;
-            letter-spacing: 0.16em;
+            letter-spacing: 0.06em;
             color: var(--ink-4);
           }
           .chart__label--today { color: var(--oxblood); }
@@ -258,7 +294,7 @@ function DashboardPage() {
             font-family: var(--font-mono);
             font-size: 10px;
             color: var(--ink-4);
-            letter-spacing: 0.12em;
+            letter-spacing: 0.05em;
           }
           .due__client {
             font-size: 13px;
@@ -294,7 +330,7 @@ function DashboardPage() {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: var(--font-serif);
+            font-family: var(--font-display);
             font-size: 13px;
             font-weight: 500;
             border: 1px solid var(--rule);
@@ -307,7 +343,7 @@ function DashboardPage() {
           .feed__time {
             font-family: var(--font-mono);
             font-size: 10px;
-            letter-spacing: 0.14em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
             white-space: nowrap;
@@ -359,142 +395,120 @@ function DashboardPage() {
           .qa__label {
             font-size: 14px;
             font-weight: 500;
-            font-family: var(--font-serif);
+            font-family: var(--font-display);
             letter-spacing: -0.005em;
             color: var(--ink);
           }
           .qa__meta {
             font-family: var(--font-mono);
             font-size: 9.5px;
-            letter-spacing: 0.2em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
           }
+
+
+          .dash-hero__byline strong { color: var(--ink-2); font-weight: 600; }
+          .dash-empty { padding: 28px 20px; text-align: center; font-size: 13px; color: var(--ink-3); }
+          .chart__bar--borrador { background: var(--ink-4); }
+          .chart__bar--emitida { background: var(--amber); }
+          .chart__bar--pagada { background: var(--moss); }
+          .chart__bar--vencida { background: var(--oxblood); }
+          .due__days { margin-top: 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em; color: var(--oxblood); text-align: right; }
 
           @media (max-width: 1080px) {
             .dash-hero, .dash-row { grid-template-columns: 1fr; }
           }
         `}</style>
-
         <main className="page-content">
 
-          {/* Editorial hero headline */}
           <div className="dash-hero__headline">
             <div className="dash-hero__eyebrow">
-              <span>Edición Diaria</span>
+              <span>Resumen del periodo</span>
               <span>·</span>
-              <span>Consolidado Operativo</span>
+              <span>{formatPeriodo(periodo)}</span>
             </div>
             <h1 className="dash-hero__title">
-              Estado <em>corriente</em> del libro de ventas y cartera.
+              Estado <em>corriente</em> de la facturación y la cartera{empresa ? ` de ${empresa}` : ''}.
             </h1>
             <div className="dash-hero__byline">
-              <span>Actualizado hoy, 09:42</span>
+              <span>Hola, <strong>{user?.nombre}</strong></span>
+              <span>·</span>
+              <span>{ROL_LABEL[user?.rol] ?? 'Usuario'}</span>
               <span>·</span>
               <span>Moneda: COP</span>
-              <span>·</span>
-              <span>IVA 19 %</span>
             </div>
           </div>
 
-          {/* KPI ledger */}
           <div className="kpi-grid stagger">
-            <KPICard
-              label="Ventas del día"
-              value={formatCurrency(ventasHoy)}
-              num="N° 01"
-              trend={{ dir: 'up', text: '+15 % vs. ayer' }}
-              accent="oxblood"
-            />
-            <KPICard
-              label="Facturas emitidas"
-              value={facturasEmitidas}
-              num="N° 02"
-              trend={{ dir: 'up', text: 'Mes en curso' }}
-              accent="ink"
-            />
-            <KPICard
-              label="Pendientes de cobro"
-              value={facturasPendientes}
-              num="N° 03"
-              trend={{ dir: 'warn', text: 'Por gestionar' }}
-              accent="amber"
-            />
-            <KPICard
-              label="Clientes activos"
-              value={clientesActivos}
-              num="N° 04"
-              trend={{ dir: 'up', text: 'En directorio' }}
-              accent="moss"
-            />
+            <KPICard label="Clientes activos" value={kClientes.value} num="N° 01" trend={kClientes.trend} accent="moss" />
+            <KPICard label="Recaudado del periodo" value={kRecaudado.value} num="N° 02" trend={kRecaudado.trend} accent="ink" />
+            <KPICard label="Por cobrar del periodo" value={kPorCobrar.value} num="N° 03" trend={kPorCobrar.trend} accent="amber" />
+            <KPICard label="Cartera vencida" value={kCartera.value} num="N° 04" trend={kCartera.trend} accent="oxblood" />
           </div>
 
-          {/* Chart + Due */}
           <div className="dash-row">
             <div className="card">
               <div className="card__header">
                 <div className="card__title-wrap">
-                  <span className="card__eyebrow">Figura 01</span>
-                  <span className="card__title">Tendencia de <em>ventas</em> — últimos 7 días</span>
+                  <span className="card__eyebrow">Gráfico</span>
+                  <span className="card__title">Facturas del <em>periodo</em> por estado</span>
                 </div>
-                <span className="card__meta">Abril MMXXVI</span>
+                <span className="card__meta">{formatPeriodo(periodo)}</span>
               </div>
               <div className="chart">
-                <div className="chart__head">
-                  <div className="chart__totals">
-                    <div>
-                      <span className="chart__total-label">Acumulado</span>
-                      <span className="chart__total-val">
-                        {formatCurrency(TOTAL_SEMANA)}
-                        <span className="chart__total-delta">+12.4 %</span>
-                      </span>
-                    </div>
-                    <div>
-                      <span className="chart__total-label">Promedio diario</span>
-                      <span className="chart__total-val">{formatCurrency(Math.round(AVG_SEMANA))}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="chart__grid" role="img" aria-label="Gráfico de barras de ventas semanales">
-                  {[0, 25, 50, 75, 100].map(pct => (
-                    <div key={pct} className="chart__gridline" style={{ bottom: `${pct}%` }}>
-                      <span className="chart__gridline-label">
-                        {(MAX_VENTA * pct / 100 / 1000000).toFixed(1)}M
-                      </span>
-                    </div>
-                  ))}
-
-                  <div className="chart__bars">
-                    {VENTAS_SEMANA.map(item => {
-                      const pct = (item.valor / MAX_VENTA) * 100
-                      const isToday = item.dia === 'HOY'
-                      return (
-                        <div
-                          key={item.dia}
-                          className={`chart__bar-col ${isToday ? 'chart__bar-col--today' : ''}`}
-                          title={`${item.dia}: ${formatCurrency(item.valor)}`}
-                        >
-                          <span className="chart__bar-val">
-                            {(item.valor / 1000000).toFixed(1)}
-                          </span>
-                          <div className="chart__bar" style={{ height: `${pct}%`, minHeight: '6px' }} />
+                <Bloque estado={estado('conteos')} onRetry={reload}>
+                  {(conteos) => {
+                    const max = Math.max(...BARRAS.map((b) => conteos[b.estado]), 1)
+                    return (
+                      <>
+                        <div className="chart__head">
+                          <div className="chart__totals">
+                            <div>
+                              <span className="chart__total-label">Facturas del periodo</span>
+                              <span className="chart__total-val">{conteos.total}</span>
+                            </div>
+                            <div>
+                              <span className="chart__total-label">Pagadas</span>
+                              <span className="chart__total-val">
+                                {conteos.total > 0 ? Math.round((conteos.PAGADA / conteos.total) * 100) : 0} %
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      )
-                    })}
-                  </div>
-                </div>
 
-                <div className="chart__labels">
-                  {VENTAS_SEMANA.map(item => (
-                    <span
-                      key={item.dia}
-                      className={`chart__label ${item.dia === 'HOY' ? 'chart__label--today' : ''}`}
-                    >
-                      {item.dia}
-                    </span>
-                  ))}
-                </div>
+                        <div className="chart__grid" role="img" aria-label="Gráfico de barras de facturas del periodo por estado">
+                          {[0, 25, 50, 75, 100].map((pct) => (
+                            <div key={pct} className="chart__gridline" style={{ bottom: `${pct}%` }}>
+                              <span className="chart__gridline-label">{Math.round((max * pct) / 100)}</span>
+                            </div>
+                          ))}
+                          <div className="chart__bars">
+                            {BARRAS.map((b) => (
+                              <div
+                                key={b.estado}
+                                className="chart__bar-col"
+                                title={`${ESTADO_FACTURA[b.estado]}: ${conteos[b.estado]}`}
+                              >
+                                <span className="chart__bar-val">{conteos[b.estado]}</span>
+                                <div
+                                  className={`chart__bar chart__bar--${b.clase}`}
+                                  style={{ height: `${(conteos[b.estado] / max) * 100}%`, minHeight: '6px' }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="chart__labels">
+                          {BARRAS.map((b) => (
+                            <span key={b.estado} className="chart__label">{ESTADO_FACTURA[b.estado].toUpperCase()}</span>
+                          ))}
+                        </div>
+                      </>
+                    )
+                  }}
+                </Bloque>
               </div>
             </div>
 
@@ -502,61 +516,66 @@ function DashboardPage() {
               <div className="card__header">
                 <div className="card__title-wrap">
                   <span className="card__eyebrow">Cartera</span>
-                  <span className="card__title">Por cobrar</span>
+                  <span className="card__title">Mayores morosos</span>
                 </div>
-                <button className="btn btn--ghost btn--sm" onClick={() => navigate('/facturas')}>
-                  Ver todas <Icon name="chevron-right" size={11} />
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => navigate('/cartera')}>
+                  Ver cartera <Icon name="chevron-right" size={11} />
                 </button>
               </div>
               <div className="due">
-                {facturas.filter(f => f.estado !== 'Pagada').slice(0, 4).map(f => (
-                  <div key={f.id} className="due__row">
-                    <div>
-                      <div className="due__client">{f.cliente.split(' ').slice(0, 2).join(' ')}</div>
-                      <div className="due__num">{f.numero}</div>
-                    </div>
-                    <div>
-                      <div className="due__amount">{formatCurrency(f.total)}</div>
-                      <div style={{ textAlign: 'right', marginTop: 4 }}>
-                        <StatusChip status={f.estado} />
+                <Bloque estado={estado('cartera')} onRetry={reload}>
+                  {(cartera) => (cartera.top.length === 0
+                    ? <p className="dash-empty">Sin cartera vencida a la fecha.</p>
+                    : cartera.top.map((c) => (
+                      <div key={c.cliente.id} className="due__row">
+                        <div>
+                          <div className="due__client">{c.cliente.nombre}</div>
+                          <div className="due__num">
+                            {[c.cliente.grupoNombre, c.cliente.unidad].filter(Boolean).join(' · ')}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="due__amount">{formatCurrency(c.totalAdeudado)}</div>
+                          <div className="due__days">
+                            {c.facturasVencidas} {c.facturasVencidas === 1 ? 'factura' : 'facturas'} · {c.diasMoraMaximo} días de mora
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    )))}
+                </Bloque>
               </div>
             </div>
           </div>
 
-          {/* Activity + Quick actions */}
           <div className="dash-row">
             <div className="card">
               <div className="card__header">
                 <div className="card__title-wrap">
-                  <span className="card__eyebrow">Registro</span>
-                  <span className="card__title">Actividad reciente</span>
+                  <span className="card__eyebrow">Cobranza</span>
+                  <span className="card__title">Facturas impagas recientes</span>
                 </div>
-                <span className="card__meta">Últimas 24 h</span>
+                <span className="card__meta">Emitidas y vencidas</span>
               </div>
               <div className="feed">
-                {ACTIVIDAD.map((a, i) => {
-                  const meta = KIND_META[a.kind] || KIND_META.factura
-                  return (
-                    <div key={i} className="feed__item">
-                      <div
-                        className="feed__mark"
-                        style={{
-                          background: meta.bg,
-                          color: meta.color,
-                          borderColor: 'transparent',
-                        }}
-                      >
-                        {meta.label}
-                      </div>
-                      <div className="feed__text">{a.text}</div>
-                      <div className="feed__time">{a.time}</div>
-                    </div>
-                  )
-                })}
+                <Bloque estado={estado('impagas')} onRetry={reload}>
+                  {(facturas) => (facturas.length === 0
+                    ? <p className="dash-empty">No hay facturas impagas.</p>
+                    : facturas.map((f) => {
+                      const meta = KIND_META[f.estado] || KIND_META.EMITIDA
+                      return (
+                        <div key={f.id} className="feed__item">
+                          <div className="feed__mark" style={{ background: meta.bg, color: meta.color, borderColor: 'transparent' }}>
+                            {meta.label}
+                          </div>
+                          <div className="feed__text">
+                            {f.numero ?? 'Sin número'} · {f.cliente.nombre} · {formatCurrency(f.total)}
+                            <div style={{ marginTop: 4 }}><StatusChip status={ESTADO_FACTURA[f.estado]} /></div>
+                          </div>
+                          <div className="feed__time">Vence {formatDate(f.fechaVencimiento)}</div>
+                        </div>
+                      )
+                    }))}
+                </Bloque>
               </div>
             </div>
 
@@ -568,9 +587,10 @@ function DashboardPage() {
                 </div>
               </div>
               <div className="qa-grid">
-                {QUICK_ACTIONS.map(a => (
+                {atajos.map((a) => (
                   <button
-                    key={a.label}
+                    key={a.path}
+                    type="button"
                     className={`qa ${a.primary ? 'qa--primary' : ''}`}
                     onClick={() => navigate(a.path)}
                   >

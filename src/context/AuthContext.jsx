@@ -1,75 +1,101 @@
 /**
- * AuthContext.jsx - Contexto global de autenticacion
- * Maneja el estado de sesion del usuario en toda la aplicacion
- * Utiliza React Context API + useState para estado global sin Redux
+ * AuthContext.jsx - Sesion real contra la API (JWT).
+ * - login: POST /api/auth/login, guarda el token y el usuario.
+ * - Restaura la sesion al recargar (GET /api/auth/me).
+ * - ADMIN_GENERAL no tiene empresa propia: elige una (selector del Topbar) y se envia como X-Empresa-Id.
  */
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import * as authApi from '../api/auth.js'
+import { session, setUnauthorizedHandler } from '../api/client.js'
 
-// Crear el contexto de autenticacion
-const AuthContext = createContext(null)
+export const AuthContext = createContext(null)
 
-/**
- * Usuarios de demostracion del sistema
- * En produccion, estos datos vendrian del backend Spring Boot
- */
-const DEMO_USERS = [
-  { id: 1, email: 'admin@invoixio.com', password: 'admin123', nombre: 'Administrador', rol: 'ADMIN' },
-  { id: 2, email: 'contador@invoixio.com', password: 'conta123', nombre: 'Contador', rol: 'CONTADOR' },
-]
-
-/**
- * AuthProvider - Proveedor del contexto de autenticacion
- * Envuelve toda la aplicacion para dar acceso al estado de sesion
- * @param {React.ReactNode} children - Componentes hijos
- */
 export function AuthProvider({ children }) {
-  // Estado del usuario autenticado (null = no autenticado)
   const [user, setUser] = useState(null)
+  const [initializing, setInitializing] = useState(() => !!session.getToken())
+  const [empresas, setEmpresas] = useState([])
+  const [empresaId, setEmpresaIdState] = useState(null)
 
-  /**
-   * login - Autentica al usuario con email y password
-   * @param {string} email - Correo electronico
-   * @param {string} password - Contrasena
-   * @returns {boolean} true si las credenciales son correctas
-   */
-  const login = (email, password) => {
-    const found = DEMO_USERS.find(u => u.email === email && u.password === password)
-    if (found) {
-      // Guardar usuario en estado (sin exponer la contrasena)
-      const { password: _, ...safeUser } = found
-      setUser(safeUser)
-      return true
+  const prepararEmpresa = useCallback(async (u) => {
+    if (u.rol !== 'ADMIN_GENERAL') {
+      session.setEmpresaId(null)
+      setEmpresas([])
+      setEmpresaIdState(u.empresaId)
+      return
     }
-    return false
-  }
+    const page = await authApi.listarEmpresas()
+    const lista = page?.content ?? []
+    setEmpresas(lista)
+    const guardada = Number(session.getEmpresaId())
+    const elegida = lista.find((e) => e.id === guardada) ?? lista[0] ?? null
+    session.setEmpresaId(elegida?.id ?? null)
+    setEmpresaIdState(elegida?.id ?? null)
+  }, [])
 
-  /**
-   * logout - Cierra la sesion del usuario actual
-   * Limpia el estado de usuario
-   */
-  const logout = () => {
+  const cerrarLocal = useCallback(() => {
+    session.clear()
     setUser(null)
-  }
+    setEmpresas([])
+    setEmpresaIdState(null)
+  }, [])
 
-  // Valor expuesto por el contexto a toda la aplicacion
-  const value = { user, login, logout, isAuthenticated: !!user }
+  useEffect(() => {
+    setUnauthorizedHandler(cerrarLocal)
+    return () => setUnauthorizedHandler(null)
+  }, [cerrarLocal])
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  useEffect(() => {
+    if (!session.getToken()) return undefined
+    let activo = true
+    authApi.me()
+      .then(async (u) => { await prepararEmpresa(u); if (activo) setUser(u) })
+      .catch(() => { if (activo) cerrarLocal() })
+      .finally(() => { if (activo) setInitializing(false) })
+    return () => { activo = false }
+  }, [prepararEmpresa, cerrarLocal])
+
+  /** Lanza ApiError si las credenciales son invalidas. */
+  const login = useCallback(async (email, password) => {
+    const r = await authApi.login(email.trim(), password)
+    session.setToken(r.token)
+    try {
+      await prepararEmpresa(r.usuario)
+    } catch (err) {
+      cerrarLocal()
+      throw err
+    }
+    setUser(r.usuario)
+    return r.usuario
+  }, [prepararEmpresa, cerrarLocal])
+
+  const logout = useCallback(() => { cerrarLocal() }, [cerrarLocal])
+
+  const cambiarEmpresa = useCallback((id) => {
+    session.setEmpresaId(id)
+    setEmpresaIdState(Number(id))
+  }, [])
+
+  const value = useMemo(() => ({
+    user,
+    initializing,
+    isAuthenticated: !!user,
+    login,
+    logout,
+    empresaId,
+    empresas,
+    cambiarEmpresa,
+    esGeneral: user?.rol === 'ADMIN_GENERAL',
+    /** CONTADOR solo lectura en maestros y tarifas; opera facturas. */
+    puedeEscribirMaestros: !!user && user.rol !== 'CONTADOR',
+    puedeVerEmpleados: !!user && user.rol !== 'CONTADOR',
+  }), [user, initializing, login, logout, empresaId, empresas, cambiarEmpresa])
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-/**
- * useAuth - Hook personalizado para acceder al contexto de autenticacion
- * @returns {Object} { user, login, logout, isAuthenticated }
- */
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth debe usarse dentro de un AuthProvider')
-  }
+  if (!context) throw new Error('useAuth debe usarse dentro de un AuthProvider')
   return context
 }

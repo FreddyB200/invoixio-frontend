@@ -1,15 +1,14 @@
 /**
- * PrivateRoute.jsx - Componente de ruta protegida
- * Redirige al login si el usuario no esta autenticado
- * Patron: Higher Order Component (HOC) de proteccion
+ * PrivateRoute.jsx - Ruta protegida: espera a restaurar la sesion y redirige al login si no hay usuario.
  */
 
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { LoadingState } from './StateViews.jsx'
 
 function PrivateRoute({ children }) {
-  const { isAuthenticated } = useAuth()
-  // Si no esta autenticado, redirigir al login
+  const { isAuthenticated, initializing } = useAuth()
+  if (initializing) return <LoadingState label="Restaurando sesión…" />
   return isAuthenticated ? children : <Navigate to="/login" replace />
 }
 
