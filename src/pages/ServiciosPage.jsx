@@ -5,9 +5,11 @@ import { Toast } from '../components/SharedComponents.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ServiciosStyles } from '../components/servicios/estilos.jsx'
 import ServiciosTab from '../components/servicios/ServiciosTab.jsx'
+import TarifasGrupoTab from '../components/servicios/TarifasGrupoTab.jsx'
 
 const TABS = [
   { id: 'servicios', etiqueta: 'Servicios', Componente: ServiciosTab },
+  { id: 'tarifas', etiqueta: 'Tarifas por grupo', Componente: TarifasGrupoTab },
 ]
 
 export default function ServiciosPage() {
