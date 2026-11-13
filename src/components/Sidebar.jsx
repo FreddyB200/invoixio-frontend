@@ -34,7 +34,7 @@ function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar__brand">
         <div className="sidebar__brand-row">
-          <span className="sidebar__mark">Invo<em>i</em>xio</span>
+          <span className="sidebar__mark">Invoixio</span>
         </div>
         <span className="sidebar__meta">Gestión y facturación</span>
       </div>

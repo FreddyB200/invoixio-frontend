@@ -93,7 +93,7 @@ function DashboardPage() {
     <div className="layout">
       <Sidebar />
       <div className="main-wrap">
-        <Topbar title="Resumen General" eyebrow="Mesa de Trabajo · Vol. I" />
+        <Topbar title="Resumen General" eyebrow="Panel de control" />
 
         <style>{`
           .dash-hero {
@@ -110,7 +110,7 @@ function DashboardPage() {
           .dash-hero__eyebrow {
             font-family: var(--font-mono);
             font-size: 10px;
-            letter-spacing: 0.24em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
             display: flex;
@@ -125,18 +125,17 @@ function DashboardPage() {
             background: var(--rule);
           }
           .dash-hero__title {
-            font-family: var(--font-serif);
-            font-variation-settings: "SOFT" 30;
-            font-size: 44px;
-            font-weight: 400;
+            font-family: var(--font-display);
+            font-size: 30px;
+            font-weight: 600;
             letter-spacing: -0.025em;
             line-height: 1.02;
             color: var(--ink);
             max-width: 780px;
           }
           .dash-hero__title em {
-            font-style: italic;
-            color: var(--oxblood);
+            font-style: normal;
+            color: var(--brand);
           }
           .dash-hero__byline {
             display: flex;
@@ -144,7 +143,7 @@ function DashboardPage() {
             margin-top: 14px;
             font-family: var(--font-mono);
             font-size: 10.5px;
-            letter-spacing: 0.14em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
           }
@@ -172,7 +171,7 @@ function DashboardPage() {
           .chart__total-label {
             font-family: var(--font-mono);
             font-size: 10px;
-            letter-spacing: 0.2em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
             display: block;
@@ -211,7 +210,7 @@ function DashboardPage() {
             font-family: var(--font-mono);
             font-size: 9.5px;
             color: var(--ink-5);
-            letter-spacing: 0.08em;
+            letter-spacing: 0.05em;
             padding-right: 10px;
             background: var(--surface);
           }
@@ -273,7 +272,7 @@ function DashboardPage() {
             font-family: var(--font-mono);
             font-size: 10px;
             font-weight: 500;
-            letter-spacing: 0.16em;
+            letter-spacing: 0.06em;
             color: var(--ink-4);
           }
           .chart__label--today { color: var(--oxblood); }
@@ -295,7 +294,7 @@ function DashboardPage() {
             font-family: var(--font-mono);
             font-size: 10px;
             color: var(--ink-4);
-            letter-spacing: 0.12em;
+            letter-spacing: 0.05em;
           }
           .due__client {
             font-size: 13px;
@@ -331,7 +330,7 @@ function DashboardPage() {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: var(--font-serif);
+            font-family: var(--font-display);
             font-size: 13px;
             font-weight: 500;
             border: 1px solid var(--rule);
@@ -344,7 +343,7 @@ function DashboardPage() {
           .feed__time {
             font-family: var(--font-mono);
             font-size: 10px;
-            letter-spacing: 0.14em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
             white-space: nowrap;
@@ -396,14 +395,14 @@ function DashboardPage() {
           .qa__label {
             font-size: 14px;
             font-weight: 500;
-            font-family: var(--font-serif);
+            font-family: var(--font-display);
             letter-spacing: -0.005em;
             color: var(--ink);
           }
           .qa__meta {
             font-family: var(--font-mono);
             font-size: 9.5px;
-            letter-spacing: 0.2em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--ink-4);
           }
@@ -415,7 +414,7 @@ function DashboardPage() {
           .chart__bar--emitida { background: var(--amber); }
           .chart__bar--pagada { background: var(--moss); }
           .chart__bar--vencida { background: var(--oxblood); }
-          .due__days { margin-top: 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; color: var(--oxblood); text-align: right; }
+          .due__days { margin-top: 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em; color: var(--oxblood); text-align: right; }
 
           @media (max-width: 1080px) {
             .dash-hero, .dash-row { grid-template-columns: 1fr; }
@@ -452,7 +451,7 @@ function DashboardPage() {
             <div className="card">
               <div className="card__header">
                 <div className="card__title-wrap">
-                  <span className="card__eyebrow">Figura 01</span>
+                  <span className="card__eyebrow">Gráfico</span>
                   <span className="card__title">Facturas del <em>periodo</em> por estado</span>
                 </div>
                 <span className="card__meta">{formatPeriodo(periodo)}</span>

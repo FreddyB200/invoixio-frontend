@@ -56,7 +56,7 @@ function validar(f) {
 }
 
 const css = `
-.em-name { font-family: var(--font-serif); font-size: 14.5px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
+.em-name { font-family: var(--font-display); font-size: 14.5px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
 .em-sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-4); margin-top: 2px; }
 .em-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .em-filter { display: flex; align-items: center; gap: 8px; }
@@ -64,7 +64,7 @@ const css = `
 .em-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .em-grid__full { grid-column: 1 / -1; }
 .em-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
-.em-banner { margin-bottom: 14px; padding: 10px 14px; border: 1px solid #e3c3bc; background: var(--oxblood-wash); color: var(--oxblood); font-size: 13px; }
+.em-banner { margin-bottom: 14px; padding: 10px 14px; border: 1px solid #fecdca; background: var(--oxblood-wash); color: var(--oxblood); font-size: 13px; }
 @media (max-width: 640px) { .em-grid { grid-template-columns: 1fr; } }
 `
 
@@ -83,7 +83,7 @@ function Restringido() {
     <div className="layout">
       <Sidebar />
       <div className="main-wrap">
-        <Topbar title="Empleados" eyebrow="Módulo VII · Personal" />
+        <Topbar title="Empleados" eyebrow="Personal" />
         <main className="page-content">
           <EmptyState
             title="Acceso restringido"
@@ -191,13 +191,13 @@ function EmpleadosContenido() {
     <div className="layout">
       <Sidebar />
       <div className="main-wrap">
-        <Topbar title="Empleados" eyebrow="Módulo VII · Personal" />
+        <Topbar title="Empleados" eyebrow="Personal" />
         <style>{css}</style>
 
         <main className="page-content">
           <div className="page-header">
             <div className="page-header__left">
-              <span className="page-header__eyebrow">Módulo VII · Personal</span>
+              <span className="page-header__eyebrow">Personal</span>
               <h1>Equipo de <em>trabajo</em></h1>
               <p>Registra al personal de la empresa y el que atiende cada conjunto, sede, zona o plan.</p>
             </div>
@@ -231,10 +231,10 @@ function EmpleadosContenido() {
           <div className="card">
             <div className="card__header">
               <div className="card__title-wrap">
-                <span className="card__eyebrow">Registro</span>
+                <span className="card__eyebrow">Listado</span>
                 <span className="card__title">Personal <em>registrado</em></span>
               </div>
-              <span className="card__meta">Orden alfabético</span>
+              <span className="card__meta">Ordenado por nombre</span>
             </div>
             <div className="card__body" style={{ padding: 0 }}>
               {loading && !pagina && <LoadingState label="Cargando empleados…" />}

@@ -6,14 +6,14 @@ import { ESTADO_FACTURA, formatCurrency, formatDate, formatPeriodo } from '../..
 
 const css = `
 .fa-det__meta { display:grid; grid-template-columns:repeat(2,1fr); gap:14px 22px; margin-bottom:20px; }
-.fa-det__meta dt { font-family:var(--font-mono); font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-4); margin-bottom:3px; }
+.fa-det__meta dt { font-family:var(--font-mono); font-size:9.5px; letter-spacing: 0.06em; text-transform:uppercase; color:var(--ink-4); margin-bottom:3px; }
 .fa-det__meta dd { margin:0; font-size:13.5px; color:var(--ink); }
 .fa-det__items { width:100%; border-collapse:collapse; font-size:13px; }
-.fa-det__items th { text-align:left; padding:8px 8px; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-4); border-bottom:1px solid var(--ink); }
+.fa-det__items th { text-align:left; padding:8px 8px; font-family:var(--font-mono); font-size:9.5px; letter-spacing: 0.06em; text-transform:uppercase; color:var(--ink-4); border-bottom:1px solid var(--ink); }
 .fa-det__items td { padding:9px 8px; border-bottom:1px dashed var(--rule); }
 .fa-det__items .fa-r { text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 .fa-det__total { display:flex; justify-content:space-between; align-items:baseline; margin-top:14px; padding-top:12px; border-top:1px solid var(--ink); }
-.fa-det__total span:first-child { font-family:var(--font-mono); font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-3); }
+.fa-det__total span:first-child { font-family:var(--font-mono); font-size:10px; letter-spacing: 0.06em; text-transform:uppercase; color:var(--ink-3); }
 .fa-det__total span:last-child { font-family:var(--font-mono); font-size:22px; font-weight:600; color:var(--ink); }
 `
 

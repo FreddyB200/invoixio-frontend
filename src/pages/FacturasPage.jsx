@@ -25,10 +25,10 @@ const TAMANO_PAGINA = 20
 
 const css = `
 .fa-periodo { display:flex; align-items:center; gap:8px; }
-.fa-periodo__label { min-width:150px; text-align:center; font-family:var(--font-serif); font-size:17px; text-transform:capitalize; color:var(--ink); }
+.fa-periodo__label { min-width:150px; text-align:center; font-family:var(--font-display); font-size:17px; text-transform:capitalize; color:var(--ink); }
 .fa-select { width:auto; padding:8px 14px; }
 .fa-num { font-family:var(--font-mono); font-size:12.5px; font-weight:500; letter-spacing:.04em; color:var(--ink); }
-.fa-num--borrador { color:var(--ink-4); font-style:italic; font-family:var(--font-sans); letter-spacing:0; }
+.fa-num--borrador { color:var(--ink-4); font-style: normal; font-family:var(--font-sans); letter-spacing:0; }
 .fa-sub { display:block; font-size:11.5px; color:var(--ink-4); }
 .fa-fecha { font-family:var(--font-mono); font-size:12px; color:var(--ink-3); }
 .fa-acciones { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
@@ -124,13 +124,13 @@ function FacturasPage() {
     <div className="layout">
       <Sidebar />
       <div className="main-wrap">
-        <Topbar title="Facturación" eyebrow="Módulo II · Operaciones" />
+        <Topbar title="Facturación" eyebrow="Operaciones" />
         <style>{css}</style>
 
         <main className="page-content">
           <div className="page-header">
             <div className="page-header__left">
-              <span className="page-header__eyebrow">Módulo II <span>·</span> Facturación por periodo</span>
+              <span className="page-header__eyebrow">Facturación por periodo</span>
               <h1>Gestión de <em>facturas</em></h1>
               <p>Genera las cuotas del mes a partir de las tarifas, emítelas en lote y registra los pagos.</p>
             </div>

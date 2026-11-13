@@ -141,11 +141,11 @@ function GruposPage() {
     <div className="layout">
       <Sidebar />
       <div className="main-wrap">
-        <Topbar title="Grupos de clientes" eyebrow="Módulo V · Agrupaciones" />
+        <Topbar title="Grupos de clientes" eyebrow="Agrupaciones" />
 
         <style>{`
           .gr-name {
-            font-family: var(--font-serif);
+            font-family: var(--font-display);
             font-size: 14.5px;
             font-weight: 500;
             color: var(--ink);
@@ -178,7 +178,7 @@ function GruposPage() {
 
           <div className="page-header">
             <div className="page-header__left">
-              <span className="page-header__eyebrow">Módulo V · Agrupaciones</span>
+              <span className="page-header__eyebrow">Agrupaciones</span>
               <h1>Grupos de <em>clientes</em></h1>
               <p>Un grupo reúne a los clientes de un mismo conjunto, sede, zona o plan, y define su tarifa base.</p>
             </div>
@@ -211,10 +211,10 @@ function GruposPage() {
           <div className="card">
             <div className="card__header">
               <div className="card__title-wrap">
-                <span className="card__eyebrow">Registro</span>
+                <span className="card__eyebrow">Listado</span>
                 <span className="card__title">Agrupaciones <em>de clientes</em></span>
               </div>
-              <span className="card__meta">Orden alfabético</span>
+              <span className="card__meta">Ordenado por nombre</span>
             </div>
             <div className="card__body" style={{ padding: 0 }}>
               {lista.error ? (

@@ -27,8 +27,8 @@ const css = `
 .ca-toggle:hover { background:var(--paper-2); color:var(--ink); }
 .ca-toggle:focus-visible { outline:2px solid var(--ink); }
 .ca-mora { display:inline-block; font-family:var(--font-mono); font-size:12px; font-weight:600; padding:3px 9px; border-radius:2px; border:1px solid; }
-.ca-mora--leve { background:var(--amber-wash); color:var(--amber); border-color:#dcc69a; }
-.ca-mora--media { background:var(--oxblood-wash); color:var(--oxblood); border-color:#e3c3bc; }
+.ca-mora--leve { background:var(--amber-wash); color:var(--amber); border-color:#f5d9a0; }
+.ca-mora--media { background:var(--oxblood-wash); color:var(--oxblood); border-color:#fecdca; }
 .ca-mora--grave { background:var(--oxblood); color:var(--paper); border-color:var(--oxblood-2); }
 `
 
@@ -81,13 +81,13 @@ export default function CarteraPage() {
     <div className="layout">
       <Sidebar />
       <div className="main-wrap">
-        <Topbar title="Cartera vencida" eyebrow="Módulo III · Cobranza" />
+        <Topbar title="Cartera vencida" eyebrow="Cobranza" />
         <style>{css}</style>
 
         <main className="page-content">
           <div className="page-header">
             <div className="page-header__left">
-              <span className="page-header__eyebrow">Módulo III <span>·</span> Cobranza</span>
+              <span className="page-header__eyebrow">Cobranza</span>
               <h1>Cartera <em>vencida</em></h1>
               <p>Clientes con facturas impagas fuera de plazo, de mayor a menor atraso, para priorizar el cobro.</p>
             </div>

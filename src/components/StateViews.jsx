@@ -7,7 +7,7 @@ import { mensajeError } from '../utils/format.js'
 const css = `
 .state-view { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
   padding:48px 24px; text-align:center; color:var(--ink-3); }
-.state-view__title { font-family:var(--font-serif, serif); font-size:18px; color:var(--ink); }
+.state-view__title { font-family:var(--font-display, serif); font-size:18px; color:var(--ink); }
 .state-view__hint { font-size:13px; max-width:420px; }
 .state-view--error .state-view__title { color:var(--oxblood); }
 .pager { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; font-size:13px; color:var(--ink-3); }

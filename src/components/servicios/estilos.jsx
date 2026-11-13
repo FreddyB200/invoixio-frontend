@@ -27,7 +27,7 @@ export function ChipAplicacion({ aplicacion }) {
 
 const css = `
 .sv-tabs { display:flex; gap:4px; border-bottom:1px solid var(--ink); margin-bottom:22px; flex-wrap:wrap; }
-.sv-tab { font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+.sv-tab { font-family:var(--font-mono); font-size:11px; letter-spacing: 0.06em; text-transform:uppercase;
   padding:11px 18px; background:transparent; border:1px solid transparent; border-bottom:none; color:var(--ink-3); cursor:pointer;
   border-radius:var(--radius) var(--radius) 0 0; }
 .sv-tab:hover { color:var(--ink); }
@@ -37,7 +37,7 @@ const css = `
 .sv-note strong { color:var(--ink); }
 .sv-note--warn { border-left-color:var(--amber); background:var(--amber-wash); }
 .sv-note--error { border-left-color:var(--oxblood); background:var(--oxblood-wash); color:var(--oxblood); }
-.sv-name { font-family:var(--font-serif); font-size:14.5px; font-weight:500; color:var(--ink); }
+.sv-name { font-family:var(--font-display); font-size:14.5px; font-weight:500; color:var(--ink); }
 .sv-sub { font-size:12px; color:var(--ink-4); margin-top:2px; }
 .sv-actions { display:flex; gap:6px; justify-content:flex-end; align-items:center; }
 .sv-right { text-align:right; }
@@ -69,7 +69,7 @@ const css = `
 .sv-results button { width:100%; text-align:left; padding:11px 16px; background:transparent; border:0; cursor:pointer; font:inherit; }
 .sv-results button:hover { background:var(--surface-2); }
 .sv-client { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
-.sv-steps { font-family:var(--font-mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-4); margin-bottom:12px; }
+.sv-steps { font-family:var(--font-mono); font-size:10px; letter-spacing: 0.06em; text-transform:uppercase; color:var(--ink-4); margin-bottom:12px; }
 .sv-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .sv-result { text-align:center; padding:10px 0; }
 .sv-result strong { font-family:var(--font-mono); font-size:22px; display:block; }

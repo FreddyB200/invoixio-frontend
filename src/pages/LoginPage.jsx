@@ -60,17 +60,16 @@ function LoginPage() {
         /* ── Left: ink column ─────────────────────────── */
         .login-ink {
           position: relative;
-          background: #14110d;
-          color: #e7dec7;
+          background: #0f1b2d;
+          color: #e6ebf1;
           padding: 56px 64px;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
           overflow: hidden;
           background-image:
-            radial-gradient(700px 400px at 10% 10%, rgba(200,74,58,0.12), transparent 65%),
-            radial-gradient(520px 300px at 80% 90%, rgba(60,80,50,0.14), transparent 60%),
-            url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.9  0 0 0 0 0.85  0 0 0 0 0.72  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+            radial-gradient(700px 400px at 10% 10%, rgba(59,116,189,0.18), transparent 65%),
+            radial-gradient(520px 300px at 80% 90%, rgba(29,79,145,0.16), transparent 60%);
         }
 
         .login-ink::before {
@@ -78,7 +77,7 @@ function LoginPage() {
           position: absolute;
           top: 0; left: 0; right: 0;
           height: 4px;
-          background: linear-gradient(90deg, #c84a3a 0%, #c84a3a 140px, transparent 140px);
+          background: linear-gradient(90deg, #3b74bd 0%, #3b74bd 140px, transparent 140px);
         }
 
         .login-ink__top {
@@ -87,52 +86,52 @@ function LoginPage() {
           align-items: baseline;
           font-family: var(--font-mono);
           font-size: 10px;
-          letter-spacing: 0.2em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
-          color: #8a7f6a;
+          color: #8493a8;
         }
 
         .login-ink__mark {
-          font-family: var(--font-serif);
-          font-weight: 500;
-          font-size: 72px;
+          font-family: var(--font-display);
+          font-weight: 700;
+          font-size: 40px;
           letter-spacing: -0.035em;
-          color: #f5ecd4;
+          color: #f1f5fa;
           line-height: 0.95;
           margin-top: 54px;
         }
 
         .login-ink__mark em {
-          font-style: italic;
+          font-style: normal;
           font-weight: 400;
-          color: #c9836b;
+          color: #7aa7e6;
         }
 
         .login-ink__tag {
-          font-family: var(--font-serif);
+          font-family: var(--font-display);
           font-size: 22px;
           font-weight: 400;
           line-height: 1.35;
-          color: #d8cdb3;
+          color: #d3dbe5;
           max-width: 480px;
           margin-top: 22px;
           letter-spacing: -0.005em;
         }
 
         .login-ink__tag strong {
-          color: #f5ecd4;
+          color: #f1f5fa;
           font-weight: 500;
         }
 
         .login-ink__tag em {
-          font-style: italic;
-          color: #e8b596;
+          font-style: normal;
+          color: #9ec1ee;
         }
 
         .login-ink__rule {
           height: 1px;
           width: 80px;
-          background: #c84a3a;
+          background: #3b74bd;
           margin: 40px 0 28px;
         }
 
@@ -150,17 +149,17 @@ function LoginPage() {
           gap: 14px;
           align-items: baseline;
           padding-bottom: 12px;
-          border-bottom: 1px dashed #3a3224;
+          border-bottom: 1px dashed #2b3a52;
           font-size: 14px;
-          color: #c8bea8;
+          color: #b8c3d1;
           line-height: 1.45;
         }
 
         .login-ink__list-num {
           font-family: var(--font-mono);
           font-size: 10.5px;
-          letter-spacing: 0.18em;
-          color: #8a7f6a;
+          letter-spacing: 0.06em;
+          color: #8493a8;
         }
 
         .login-ink__bottom {
@@ -170,11 +169,11 @@ function LoginPage() {
           gap: 24px;
           font-family: var(--font-mono);
           font-size: 10px;
-          letter-spacing: 0.2em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
-          color: #6b6252;
+          color: #6b7a90;
           padding-top: 40px;
-          border-top: 1px solid #2a241d;
+          border-top: 1px solid #1f2d42;
         }
 
         /* ── Right: form column ───────────────────────── */
@@ -193,7 +192,7 @@ function LoginPage() {
           top: 32px; right: 32px;
           font-family: var(--font-mono);
           font-size: 10px;
-          letter-spacing: 0.22em;
+          letter-spacing: 0.06em;
           color: var(--ink-4);
         }
 
@@ -222,9 +221,9 @@ function LoginPage() {
         }
 
         .login-form__title {
-          font-family: var(--font-serif);
-          font-size: 36px;
-          font-weight: 400;
+          font-family: var(--font-display);
+          font-size: 28px;
+          font-weight: 600;
           letter-spacing: -0.02em;
           line-height: 1.05;
           color: var(--ink);
@@ -232,8 +231,8 @@ function LoginPage() {
         }
 
         .login-form__title em {
-          font-style: italic;
-          color: var(--oxblood);
+          font-style: normal;
+          color: var(--brand);
         }
 
         .login-form__sub {
@@ -246,7 +245,7 @@ function LoginPage() {
 
         .login-form__error {
           background: var(--oxblood-wash);
-          border: 1px solid #d8b0a8;
+          border: 1px solid #f4b8b2;
           border-left-width: 3px;
           border-left-color: var(--oxblood);
           border-radius: var(--radius);
@@ -300,7 +299,7 @@ function LoginPage() {
         .login-form__forgot a {
           font-family: var(--font-mono);
           font-size: 10.5px;
-          letter-spacing: 0.16em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           color: var(--ink-3);
           text-decoration: none;
@@ -339,7 +338,7 @@ function LoginPage() {
         .login-form__demo-key {
           color: var(--ink-4);
           font-size: 10px;
-          letter-spacing: 0.18em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           align-self: center;
         }
@@ -356,7 +355,7 @@ function LoginPage() {
           gap: 10px;
           font-family: var(--font-mono);
           font-size: 9.5px;
-          letter-spacing: 0.22em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           color: var(--ink-4);
           padding-bottom: 8px;
@@ -365,9 +364,9 @@ function LoginPage() {
         }
 
         .login-form__demo-head::before {
-          content: "§";
+          content: "";
           color: var(--oxblood);
-          font-family: var(--font-serif);
+          font-family: var(--font-display);
           font-size: 14px;
         }
 
@@ -381,20 +380,20 @@ function LoginPage() {
       {/* ── Left: ink editorial column ─────────────────── */}
       <section className="login-ink" aria-hidden="false">
         <div className="login-ink__top">
-          <span>Vol. I · No. 1</span>
-          <span>MMXXVI</span>
+          <span>Facturación recurrente</span>
+          <span>Plataforma multiempresa</span>
         </div>
 
         <div>
-          <h1 className="login-ink__mark">Invo<em>i</em>xio</h1>
+          <h1 className="login-ink__mark">Invoixio</h1>
           <p className="login-ink__tag">
-            La contabilidad <em>precisa</em> de una nueva generación de <strong>empresas colombianas</strong>.
+            Facturación recurrente y control de cartera para <strong>empresas de servicios</strong>.
           </p>
           <div className="login-ink__rule" aria-hidden="true" />
           <ul className="login-ink__list">
             {FEATURES.map(f => (
               <li key={f.num} className="login-ink__list-item">
-                <span className="login-ink__list-num">— {f.num}</span>
+                <span className="login-ink__list-num" aria-hidden="true">—</span>
                 <span>{f.text}</span>
               </li>
             ))}
@@ -411,7 +410,7 @@ function LoginPage() {
       <section className="login-form-col">
         <div className="login-form">
           <div className="login-form__eyebrow">
-            Acceso · Sistema
+            Acceso
           </div>
           <h2 className="login-form__title">
             Bienvenido de <em>vuelta</em>.

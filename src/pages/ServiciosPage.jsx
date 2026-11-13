@@ -28,12 +28,12 @@ export default function ServiciosPage() {
     <div className="layout">
       <Sidebar />
       <div className="main-wrap">
-        <Topbar title="Servicios y tarifas" eyebrow="Módulo VI · Catálogo y precios" />
+        <Topbar title="Servicios y tarifas" eyebrow="Catálogo y precios" />
         <ServiciosStyles />
         <main className="page-content">
           <div className="page-header">
             <div className="page-header__left">
-              <span className="page-header__eyebrow">Módulo VI · Catálogo</span>
+              <span className="page-header__eyebrow">Catálogo</span>
               <h1>Servicios y <em>tarifas</em></h1>
               <p>Define qué se cobra, cuánto vale para cada grupo de clientes y cómo se ajusta cada año.</p>
             </div>
