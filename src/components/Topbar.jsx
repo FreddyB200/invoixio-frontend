@@ -3,7 +3,6 @@
  */
 
 import { useAuth } from '../context/AuthContext.jsx'
-import Icon from './Icon.jsx'
 
 const MONTHS = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC']
 
@@ -16,7 +15,7 @@ function formatToday() {
 }
 
 function Topbar({ title, eyebrow = 'Sistema de Facturación' }) {
-  const { user } = useAuth()
+  const { esGeneral, empresas, empresaId, cambiarEmpresa } = useAuth()
   const { day, mon, yr } = formatToday()
 
   return (
@@ -27,18 +26,23 @@ function Topbar({ title, eyebrow = 'Sistema de Facturación' }) {
         <h1 className="topbar__title">{title}</h1>
       </div>
       <div className="topbar__actions">
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Notificaciones"
-        >
-          <Icon name="bell" size={15} />
-          <span className="icon-btn__dot" aria-hidden="true" />
-        </button>
-
+        {esGeneral && (
+          <label className="topbar__empresa">
+            <span className="sr-only">Empresa activa</span>
+            <select
+              className="form-select"
+              aria-label="Empresa activa"
+              value={empresaId ?? ''}
+              onChange={(e) => cambiarEmpresa(e.target.value)}
+            >
+              {empresas.length === 0 && <option value="">Sin empresas</option>}
+              {empresas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+            </select>
+          </label>
+        )}
         <div className="topbar__date" aria-label="Fecha actual">
           <strong>{day} {mon}</strong><br />
-          {yr} · Vol. I
+          {yr}
         </div>
       </div>
     </header>

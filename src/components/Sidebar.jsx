@@ -7,16 +7,19 @@ import { useAuth } from '../context/AuthContext.jsx'
 import Icon from './Icon.jsx'
 
 const NAV_ITEMS = [
-  { path: '/dashboard',  icon: 'dashboard', label: 'Resumen',      num: 'I'   },
-  { path: '/facturas',   icon: 'document',  label: 'Facturación',  num: 'II'  },
-  { path: '/clientes',   icon: 'users',     label: 'Clientes',     num: 'III' },
-  { path: '/inventario', icon: 'package',   label: 'Inventario',   num: 'IV'  },
+  { path: '/dashboard', icon: 'dashboard', label: 'Resumen',            num: 'I'   },
+  { path: '/facturas',  icon: 'document',  label: 'Facturación',        num: 'II'  },
+  { path: '/cartera',   icon: 'warning',   label: 'Cartera vencida',    num: 'III' },
+  { path: '/clientes',  icon: 'users',     label: 'Clientes',           num: 'IV'  },
+  { path: '/grupos',    icon: 'box',       label: 'Grupos',             num: 'V'   },
+  { path: '/servicios', icon: 'package',   label: 'Servicios y tarifas', num: 'VI'  },
+  { path: '/empleados', icon: 'lock',      label: 'Empleados',          num: 'VII', soloAdmins: true },
 ]
 
 function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { logout, user } = useAuth()
+  const { logout, user, puedeVerEmpleados } = useAuth()
 
   const handleLogout = () => {
     logout()
@@ -33,13 +36,13 @@ function Sidebar() {
         <div className="sidebar__brand-row">
           <span className="sidebar__mark">Invo<em>i</em>xio</span>
         </div>
-        <span className="sidebar__meta">Est. MMXXVI · Bogotá</span>
+        <span className="sidebar__meta">Gestión y facturación</span>
       </div>
 
       <nav className="sidebar__nav" aria-label="Menú principal">
         <span className="nav-label">Módulos</span>
 
-        {NAV_ITEMS.map(item => {
+        {NAV_ITEMS.filter(item => !item.soloAdmins || puedeVerEmpleados).map(item => {
           const active = location.pathname === item.path
           return (
             <button
@@ -57,12 +60,6 @@ function Sidebar() {
           )
         })}
 
-        <span className="nav-label">Sistema</span>
-        <button className="nav-item" type="button">
-          <span className="nav-item__icon"><Icon name="settings" size={15} /></span>
-          Preferencias
-          <span className="nav-item__num">V</span>
-        </button>
       </nav>
 
       <div className="sidebar__footer">
@@ -70,7 +67,7 @@ function Sidebar() {
           <div className="sidebar__avatar" aria-hidden="true">{initials}</div>
           <div className="sidebar__user-info">
             <div className="sidebar__user-name">{user?.nombre || 'Usuario'}</div>
-            <div className="sidebar__user-role">{user?.rol || 'Administrador'}</div>
+            <div className="sidebar__user-role">{(user?.rol || '').replaceAll('_', ' ').toLowerCase()}</div>
           </div>
         </div>
         <button className="sidebar__logout" onClick={handleLogout}>

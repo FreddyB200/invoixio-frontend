@@ -1120,3 +1120,8 @@ tbody tr:hover { background: var(--surface-2); }
   .page-header h1 { font-size: 28px; }
   :root { --content-pad: 20px; }
 }
+
+/* ===== Utilidades compartidas de la integracion con la API ===== */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.topbar__empresa { display:inline-flex; align-items:center; margin-right:12px; }
+.topbar__empresa .form-select { min-width:200px; }

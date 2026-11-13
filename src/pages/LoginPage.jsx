@@ -29,24 +29,22 @@ function LoginPage() {
     setLoading(true)
 
     try {
-      await new Promise(r => setTimeout(r, 600))
-      const success = login(email, password)
-
-      if (success) {
-        navigate('/dashboard', { replace: true })
-      } else {
-        setError('Credenciales incorrectas. Verifica tu correo y contraseña.')
-      }
+      await login(email, password)
+      navigate('/dashboard', { replace: true })
+    } catch (err) {
+      setError(err.status === 401
+        ? 'Credenciales incorrectas. Verifica tu correo y contraseña.'
+        : err.message)
     } finally {
       setLoading(false)
     }
   }
 
   const FEATURES = [
-    { num: 'I',   text: 'Facturación electrónica con firma fiscal' },
-    { num: 'II',  text: 'Catálogo e inventario con semáforo de stock' },
-    { num: 'III', text: 'Cartera y conciliación de pagos en tiempo real' },
-    { num: 'IV',  text: 'Reportes ejecutivos exportables en PDF' },
+    { num: 'I',   text: 'Facturación en lote por periodo, con numeración consecutiva' },
+    { num: 'II',  text: 'Tarifas por grupo, con ajuste anual por IPC en un clic' },
+    { num: 'III', text: 'Cartera vencida por cliente y días de mora' },
+    { num: 'IV',  text: 'Cada empresa ve solo sus propios datos' },
   ]
 
   return (
@@ -419,7 +417,7 @@ function LoginPage() {
             Bienvenido de <em>vuelta</em>.
           </h2>
           <p className="login-form__sub">
-            Ingresa tus credenciales para continuar con la gestión de facturación electrónica.
+            Ingresa tus credenciales para continuar con la gestión de facturación y cartera.
           </p>
 
           {error && (
@@ -439,7 +437,7 @@ function LoginPage() {
                 id="email"
                 type="email"
                 className={`form-input ${error && !email ? 'form-input--error' : ''}`}
-                placeholder="admin@invoixio.com"
+                placeholder="correo@empresa.com"
                 value={email}
                 onChange={e => { setEmail(e.target.value); setError('') }}
                 autoComplete="email"
@@ -487,13 +485,15 @@ function LoginPage() {
             </button>
           </form>
 
-          <div className="login-form__demo">
-            <div className="login-form__demo-head">Credenciales de demostración</div>
-            <span className="login-form__demo-key">Usuario</span>
-            <span className="login-form__demo-val">admin@invoixio.com</span>
-            <span className="login-form__demo-key">Clave</span>
-            <span className="login-form__demo-val">admin123</span>
-          </div>
+          {import.meta.env.DEV && (
+            <div className="login-form__demo">
+              <div className="login-form__demo-head">Credenciales de demostración (solo desarrollo)</div>
+              <span className="login-form__demo-key">Usuario</span>
+              <span className="login-form__demo-val">admin@serviportenal.com</span>
+              <span className="login-form__demo-key">Clave</span>
+              <span className="login-form__demo-val">Invoixio#2026</span>
+            </div>
+          )}
         </div>
       </section>
     </div>
